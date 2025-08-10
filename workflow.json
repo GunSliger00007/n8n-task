@@ -1,0 +1,1700 @@
+{
+  "name": "My workflow 4",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "5cbf8fa3-452c-43ed-be05-ef5f6347e281",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "name": "Webhook",
+      "webhookId": "5cbf8fa3-452c-43ed-be05-ef5f6347e281"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Safely access the WhatsApp message text from nested 'body.Body'\nconst text = $json.body?.Body ? $json.body.Body.trim() : \"\";\n\nif (!text) {\n  throw new Error(\"No WhatsApp message text found in input\");\n}\n\nconst [command, ...args] = text.split(\" \");\n\nreturn [{\n  json: {\n    command: command.toUpperCase(),\n    args: args.join(\" \"),\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [208, 0],
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.command}}",
+                    "rightValue": "LIST",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "a0e9af31-6437-4775-82bb-72085a63e365"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "8cb9a53b-78f1-4cb3-8e36-35cc9717c424",
+                    "leftValue": "={{$json.command}}",
+                    "rightValue": "DELETE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "94ac5142-a7a8-49e0-bdc2-0b1e7d750bc6",
+                    "leftValue": "={{$json.command}}",
+                    "rightValue": "MOVE",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "add91d35-4392-4a84-8435-e953edd5b542",
+                    "leftValue": "={{$json.command}}",
+                    "rightValue": "SUMMARY",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [416, 0],
+      "name": "Switch",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "={{ $json.args.split('/').pop() }}\n",
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [368, 464],
+      "name": "Search files and folders6",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "={{ $json.args }}",
+        "returnAll": true,
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [672, -192],
+      "name": "Search files and folders1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files?q='{{ $json.id }}'+in+parents&fields=files(id,name,mimeType)",
+        "authentication": "oAuth2",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [864, -192],
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "from": "{{ process.env.TWILIO_WHATSAPP_SANDBOX_NUMBER }}",
+        "to": "{{ $env.TWILIO_WHATSAPP_USER_NUMBER }}",
+        "toWhatsapp": true,
+        "message": "=The following files are available: {{ $json.files.map(file => `\"${file.name}\"`).join(', ') }}.\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1136, -256],
+      "name": "Send an SMS/MMS/WhatsApp message",
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account",
+          "accountSid": "{{ process.env.TWILIO_ACCOUNT_SID }}",
+          "authToken": "{{ process.env.TWILIO_AUTH_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "={{ $json.args.split('/').filter(p => p.length > 0).pop() }}",
+        "filter": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1328, -32],
+      "name": "Search files and folders",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "deleteFile",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $json.id }}",
+          "mode": "id"
+        },
+        "options": {
+          "deletePermanently": true
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [1472, -48],
+      "name": "Delete a file",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "name": "Google Drive account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "{{ process.env.TWILIO_WHATSAPP_SANDBOX_NUMBER }}",
+        "to": "{{ $env.TWILIO_WHATSAPP_USER_NUMBER }}",
+        "toWhatsapp": true,
+        "message": "FIle Deleted Successfully from Drive",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1728, -32],
+      "name": "Send an SMS/MMS/WhatsApp message1",
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account",
+          "accountSid": "{{ process.env.TWILIO_ACCOUNT_SID }}",
+          "authToken": "{{ process.env.TWILIO_AUTH_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $json.args || \"/King/intern.pdf /Archive\";\n\n// Split source and destination\nconst [sourcePath, destPath] = input.split(' ');\n\n// Extract folder and file name\nconst [sourceFolder, fileName] = sourcePath.split('/').filter(p => p);\nconst destFolder = destPath.replace('/', '');\n\nreturn [{\n  sourceFolder,\n  fileName,\n  destFolder\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [624, 128],
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files?q=name='{{ $json.sourceFolder }}'%20and%20mimeType='application/vnd.google-apps.folder'%20and%20trashed=false&fields=files(id,name)&spaces=drive\n",
+        "authentication": "oAuth2",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 112],
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files?q=name='{{$json.fileName}}' and trashed=false&fields=files(id,name)",
+        "authentication": "oAuth2",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 272],
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files?q=name='{{ $json.destFolder }}'%20and%20mimeType='application/vnd.google-apps.folder'%20and%20trashed=false&fields=files(id,name)&spaces=drive\n",
+        "authentication": "oAuth2",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [944, 448],
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [1232, 240],
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn [\n  {\n    json: {\n      oldFolderId: items[0].json.files[0].id,\n      fileId: items[1].json.files[0].id,\n      destFolderId: items[2].json.files[0].id\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1440, 240],
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.fileId }}?addParents={{ $json.destFolderId }}&removeParents={{ $json.oldFolderId }}&fields=id,parents",
+        "authentication": "oAuth2",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1648, 240],
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "from": "{{ process.env.TWILIO_WHATSAPP_SANDBOX_NUMBER }}",
+        "to": "{{ $env.TWILIO_WHATSAPP_USER_NUMBER }}",
+        "toWhatsapp": true,
+        "message": "FIle Move succesfully to new Folder",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1904, 224],
+      "name": "Send an SMS/MMS/WhatsApp message2",
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account",
+          "accountSid": "{{ process.env.TWILIO_ACCOUNT_SID }}",
+          "authToken": "{{ process.env.TWILIO_AUTH_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files?q='{{$json.id}}' in parents and trashed=false and (name contains '.pdf' or name contains '.docx' or name contains '.txt')&fields=files(id,name,mimeType)",
+        "authentication": "oAuth2",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [576, 464],
+      "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "url": "=https://www.googleapis.com/drive/v3/files/{{ $json.files[0].id }}?alt=media\n",
+        "authentication": "oAuth2",
+        "nodeCredentialType": "googleDriveOAuth2Api",
+        "options": {
+          "headers": {
+            "Authorization": "Bearer {{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [784, 624],
+      "name": "HTTP Request6"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.files[0].mimeType }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "01e3f8a7-34ec-4ca5-9984-dd94870e510e"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "8b2220a2-9302-468d-8030-4a7cb8d4ba53",
+                    "leftValue": "={{ $json.files[0].mimeType }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a4fd4144-f406-42b5-9ae0-58a1c13c31ec",
+                    "leftValue": "={{ $json.files[0].mimeType }}",
+                    "rightValue": "text/plain ",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [992, 624],
+      "name": "Switch1"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [1200, 512],
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "operation": "xml",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [1200, 624],
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [1184, 768],
+      "name": "Extract from File2"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Text to summarize from first input item (fallback text if missing)\nconst textToSummarize = $input.first().json.text || \"Your default text to summarize here.\";\n\n// Hugging Face API endpoint and your API token\nconst apiUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-cnn';\nconst apiKey = '{{ process.env.HUGGING_FACE_API_TOKEN }}';\n\n// Setup HTTP request options\nconst options = {\n  method: 'POST',\n  uri: apiUrl,\n  headers: {\n    Authorization: `Bearer ${apiKey}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    inputs: textToSummarize,\n    parameters: {\n      min_length: 100,\n      max_length: 300,\n    },\n  }),\n};\n\n// Send request using n8n helper function\nconst response = await this.helpers.request(options);\n\n// Return the summarized text and the full raw response\nreturn [\n  {\n    json: {\n      summary: response[0]?.summary_text || \"No summary received\",\n      fullResponse: response,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1408, 512],
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "from": "{{ process.env.TWILIO_WHATSAPP_SANDBOX_NUMBER }}",
+        "to": "{{ $env.TWILIO_WHATSAPP_USER_NUMBER }}",
+        "toWhatsapp": true,
+        "message": "=The summary of file is:\n{{ JSON.parse($json.fullResponse)[0].summary_text.replace(/^\"|\"$/g, '') }}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1680, 512],
+      "name": "Send an SMS/MMS/WhatsApp message3",
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account",
+          "accountSid": "{{ process.env.TWILIO_ACCOUNT_SID }}",
+          "authToken": "{{ process.env.TWILIO_AUTH_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE",
+          "mode": "list",
+          "cachedResultName": "Whatsapp action Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Stamp": "={{ $json.date_created }}",
+            "Action": "Delete",
+            "performed by": "={{ $json.to }}",
+            "Result": "={{ $json.body }}",
+            "status": "Success"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Time Stamp",
+              "displayName": "Time Stamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "performed by",
+              "displayName": "performed by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Result",
+              "displayName": "Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [1344, -208],
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE",
+          "mode": "list",
+          "cachedResultName": "Whatsapp action Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Stamp": "={{ $json.date_created }}",
+            "performed by": "={{ $json.to }}",
+            "Result": "={{ $json.body }}",
+            "status": "Success",
+            "Action": "Delete"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Time Stamp",
+              "displayName": "Time Stamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "performed by",
+              "displayName": "performed by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Result",
+              "displayName": "Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [2064, -32],
+      "name": "Append row in sheet1",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE",
+          "mode": "list",
+          "cachedResultName": "Whatsapp action Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Stamp": "={{ $json.date_created }}",
+            "performed by": "={{ $json.to }}",
+            "Result": "={{ $json.body }}",
+            "status": "Success",
+            "Action": "Move"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Time Stamp",
+              "displayName": "Time Stamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "performed by",
+              "displayName": "performed by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Result",
+              "displayName": "Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [2128, 240],
+      "name": "Append row in sheet2",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE",
+          "mode": "list",
+          "cachedResultName": "Whatsapp action Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Stamp": "={{ $json.date_created }}",
+            "performed by": "={{ $json.to }}",
+            "Result": "={{ $json.body }}",
+            "status": "Success",
+            "Action": "Summary"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Time Stamp",
+              "displayName": "Time Stamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "performed by",
+              "displayName": "performed by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Result",
+              "displayName": "Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [1920, 512],
+      "name": "Append row in sheet3",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Text to summarize from first input item (fallback text if missing)\nconst textToSummarize = $input.first().json.text || \"Your default text to summarize here.\";\n\n// Hugging Face API endpoint and your API token\nconst apiUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-cnn';\nconst apiKey = '{{ process.env.HUGGING_FACE_API_TOKEN }}';\n\n// Setup HTTP request options\nconst options = {\n  method: 'POST',\n  uri: apiUrl,\n  headers: {\n    Authorization: `Bearer ${apiKey}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    inputs: textToSummarize,\n    parameters: {\n      min_length: 100,\n      max_length: 300,\n    },\n  }),\n};\n\n// Send request using n8n helper function\nconst response = await this.helpers.request(options);\n\n// Return the summarized text and the full raw response\nreturn [\n  {\n    json: {\n      summary: response[0]?.summary_text || \"No summary received\",\n      fullResponse: response,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1408, 656],
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "from": "{{ process.env.TWILIO_WHATSAPP_SANDBOX_NUMBER }}",
+        "to": "{{ $env.TWILIO_WHATSAPP_USER_NUMBER }}",
+        "toWhatsapp": true,
+        "message": "=The summary of file is:\n{{ JSON.parse($json.fullResponse)[0].summary_text.replace(/^\"|\"$/g, '') }}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1696, 672],
+      "name": "Send an SMS/MMS/WhatsApp message4",
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account",
+          "accountSid": "{{ process.env.TWILIO_ACCOUNT_SID }}",
+          "authToken": "{{ process.env.TWILIO_AUTH_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE",
+          "mode": "list",
+          "cachedResultName": "Whatsapp action Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Stamp": "={{ $json.date_created }}",
+            "performed by": "={{ $json.to }}",
+            "Result": "={{ $json.body }}",
+            "status": "Success",
+            "Action": "Summary"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Time Stamp",
+              "displayName": "Time Stamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "performed by",
+              "displayName": "performed by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Result",
+              "displayName": "Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [1952, 688],
+      "name": "Append row in sheet4",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Text to summarize from first input item (fallback text if missing)\nconst textToSummarize = $input.first().json.text || \"Your default text to summarize here.\";\n\n// Hugging Face API endpoint and your API token\nconst apiUrl = 'https://api-inference.huggingface.co/models/facebook/bart-large-cnn';\nconst apiKey = '{{ process.env.HUGGING_FACE_API_TOKEN }}';\n\n// Setup HTTP request options\nconst options = {\n  method: 'POST',\n  uri: apiUrl,\n  headers: {\n    Authorization: `Bearer ${apiKey}`,\n    'Content-Type': 'application/json',\n  },\n  body: JSON.stringify({\n    inputs: textToSummarize,\n    parameters: {\n      min_length: 100,\n      max_length: 300,\n    },\n  }),\n};\n\n// Send request using n8n helper function\nconst response = await this.helpers.request(options);\n\n// Return the summarized text and the full raw response\nreturn [\n  {\n    json: {\n      summary: response[0]?.summary_text || \"No summary received\",\n      fullResponse: response,\n    },\n  },\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1392, 800],
+      "name": "Code5"
+    },
+    {
+      "parameters": {
+        "from": "{{ process.env.TWILIO_WHATSAPP_SANDBOX_NUMBER }}",
+        "to": "{{ $env.TWILIO_WHATSAPP_USER_NUMBER }}",
+        "toWhatsapp": true,
+        "message": "=The summary of file is:\n{{ JSON.parse($json.fullResponse)[0].summary_text.replace(/^\"|\"$/g, '') }}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1680, 848],
+      "name": "Send an SMS/MMS/WhatsApp message5",
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account",
+          "accountSid": "{{ process.env.TWILIO_ACCOUNT_SID }}",
+          "authToken": "{{ process.env.TWILIO_AUTH_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE",
+          "mode": "list",
+          "cachedResultName": "Whatsapp action Spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ykYPqZ2U8ii5s2H6ND9eusysBIYg_H28j76ajVcQExE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Time Stamp": "={{ $json.date_created }}",
+            "performed by": "={{ $json.to }}",
+            "Result": "={{ $json.body }}",
+            "status": "Success",
+            "Action": "Summary"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Time Stamp",
+              "displayName": "Time Stamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action",
+              "displayName": "Action",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "performed by",
+              "displayName": "performed by",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Result",
+              "displayName": "Result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "status",
+              "displayName": "status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.6,
+      "position": [1968, 864],
+      "name": "Append row in sheet5",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "name": "Google Sheets account",
+          "access_token": "{{ process.env.GOOGLE_OAUTH_ACCESS_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "b9c2cd5c-6739-4740-8385-8beef3e77db6",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "=DELETE",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "d90305e8-521d-450e-9392-92fafaaaa789",
+              "leftValue": "=",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [592, 16],
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst count = items.length;\n\nreturn items.map(item => {\n  return {\n    json: {\n      ...item.json,\n      itemCount: count\n    }\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, -80],
+      "name": "Code6"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "47bcffb6-df44-427d-b7f7-5434aa59ec27",
+              "leftValue": "={{ $json.itemCount }}",
+              "rightValue": "={{ 1 }}\n",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1008, -80],
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "from": "{{ process.env.TWILIO_WHATSAPP_SANDBOX_NUMBER }}",
+        "to": "{{ $env.TWILIO_WHATSAPP_USER_NUMBER }}",
+        "toWhatsapp": true,
+        "message": "=Too many delete request",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1216, 80],
+      "name": "Send an SMS/MMS/WhatsApp message6",
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account",
+          "accountSid": "{{ process.env.TWILIO_ACCOUNT_SID }}",
+          "authToken": "{{ process.env.TWILIO_AUTH_TOKEN }}"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "from": "{{ process.env.TWILIO_WHATSAPP_SANDBOX_NUMBER }}",
+        "to": "{{ $env.TWILIO_WHATSAPP_USER_NUMBER }}",
+        "toWhatsapp": true,
+        "message": "=Delete request is not confirmed",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [832, 32],
+      "name": "Send an SMS/MMS/WhatsApp message7",
+      "credentials": {
+        "twilioApi": {
+          "name": "Twilio account",
+          "accountSid": "{{ process.env.TWILIO_ACCOUNT_SID }}",
+          "authToken": "{{ process.env.TWILIO_AUTH_TOKEN }}"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Search files and folders6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders6": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search files and folders": {
+      "main": [
+        [
+          {
+            "node": "Delete a file",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete a file": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request5": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request6": {
+      "main": [
+        [
+          {
+            "node": "Switch1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch1": {
+      "main": [
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from File2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message1": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message2": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message3": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message4": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File2": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send an SMS/MMS/WhatsApp message5": {
+      "main": [
+        [
+          {
+            "node": "Append row in sheet5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code6",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code6": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Search files and folders",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send an SMS/MMS/WhatsApp message6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "20f59edc-bbc7-4cd0-a608-bdda1ab55e25",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3cbe065a5bfa6bb16d718e4a89e319ff49dcf2a710c0d1c9707829cf86fd7df5"
+  },
+  "tags": []
+}
